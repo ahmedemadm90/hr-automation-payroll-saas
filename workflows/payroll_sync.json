@@ -1,0 +1,48 @@
+{
+  "name": "HR SaaS - Payroll & Accounting Sync",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "hr/payroll-sync", "responseMode": "responseNode", "options": {}},
+      "id": "1",
+      "name": "Payroll Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "hr-payroll-sync"
+    },
+    {
+      "parameters": {"jsCode": "const payrolls = $json.payrolls ?? [];\nreturn payrolls.map(p => ({ json: { employee: p.user_name, amount: p.net_salary, month: p.month, status: 'synced' } }));"},
+      "id": "2",
+      "name": "Format for Accounting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{ $env.ACCOUNTING_API_URL }}", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Authorization", "value": "Bearer {{ $env.ACCOUNTING_TOKEN }}"}]}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ $json }}", "options": {}},
+      "id": "3",
+      "name": "Sync with QuickBooks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ { success: true, synced_count: $('Format for Accounting').item.json.length } }}", "options": {}},
+      "id": "4",
+      "name": "Acknowledge Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1020, 300]
+    }
+  ],
+  "connections": {
+    "Payroll Trigger": {"main": [[{"node": "Format for Accounting", "type": "main", "index": 0}]]},
+    "Format for Accounting": {"main": [[{"node": "Sync with QuickBooks", "type": "main", "index": 0}]]},
+    "Sync with QuickBooks": {"main": [[{"node": "Acknowledge Laravel", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all"},
+  "versionId": "hr-payroll-sync-v1",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}
